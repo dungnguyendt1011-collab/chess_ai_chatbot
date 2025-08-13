@@ -13,14 +13,28 @@ export const useTheme = () => {
     return 'light';
   });
 
+  // Apply theme immediately on mount
   useEffect(() => {
     const root = window.document.documentElement;
+    root.classList.remove('light', 'dark');
+    root.classList.add(theme);
+  }, []);
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    
+    // Remove any existing theme classes first
+    root.classList.remove('light', 'dark');
     
     if (theme === 'dark') {
       root.classList.add('dark');
     } else {
-      root.classList.remove('dark');
+      root.classList.add('light');
     }
+    
+    // Debug logging
+    console.log('Theme switched to:', theme);
+    console.log('Document classes:', root.className);
     
     localStorage.setItem('theme', theme);
   }, [theme]);
