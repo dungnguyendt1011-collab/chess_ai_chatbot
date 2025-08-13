@@ -67,30 +67,37 @@ export const ChatInterface: React.FC = () => {
     await sendMessage(content, file, images);
   };
 
-  // Save messages to history sau khi có response - fixed to avoid message disappearing
+  // Save messages to history after response completes
   useEffect(() => {
     if (!currentConversation || messages.length === 0) return;
 
-    // Find the last completed message pair (user + assistant)
-    const lastMessage = messages[messages.length - 1];
-    const secondLastMessage = messages[messages.length - 2];
+    const saveMessagesSequentially = async () => {
+      const lastMessage = messages[messages.length - 1];
+      const secondLastMessage = messages[messages.length - 2];
 
-    // Only save when assistant has completed responding
-    if (lastMessage?.role === 'assistant' && !lastMessage.isLoading && !lastMessage.saved) {
-      // Save assistant message
-      saveHistoryMessage(lastMessage.role, lastMessage.content);
-      setMessages(prev => prev.map(m => 
-        m.id === lastMessage.id ? { ...m, saved: true } : m
-      ));
+      // Only save when assistant has completed responding
+      if (lastMessage?.role === 'assistant' && !lastMessage.isLoading && !lastMessage.saved) {
+        try {
+          // Save user message first if exists and not saved
+          if (secondLastMessage?.role === 'user' && !secondLastMessage.saved) {
+            await saveHistoryMessage(secondLastMessage.role, secondLastMessage.content, secondLastMessage.images);
+            setMessages(prev => prev.map(m => 
+              m.id === secondLastMessage.id ? { ...m, saved: true } : m
+            ));
+          }
 
-      // Also save the user message if it exists and not saved
-      if (secondLastMessage?.role === 'user' && !secondLastMessage.saved) {
-        saveHistoryMessage(secondLastMessage.role, secondLastMessage.content, secondLastMessage.images);
-        setMessages(prev => prev.map(m => 
-          m.id === secondLastMessage.id ? { ...m, saved: true } : m
-        ));
+          // Then save assistant message
+          await saveHistoryMessage(lastMessage.role, lastMessage.content);
+          setMessages(prev => prev.map(m => 
+            m.id === lastMessage.id ? { ...m, saved: true } : m
+          ));
+        } catch (error) {
+          console.error('Failed to save messages to history:', error);
+        }
       }
-    }
+    };
+
+    saveMessagesSequentially();
   }, [messages, currentConversation, saveHistoryMessage]);
 
   const handleNewChat = async () => {
@@ -240,27 +247,9 @@ export const ChatInterface: React.FC = () => {
               </div>
             ) : (
               <>
-                {messages
-                  .filter((message, index, arr) => 
-                    // Remove duplicates based on ID first
-                    arr.findIndex(m => m.id === message.id) === index
-                  )
-                  .sort((a, b) => {
-                    // Sort by timestamp, but ensure user messages come before assistant responses
-                    const timeA = a.timestamp.getTime();
-                    const timeB = b.timestamp.getTime();
-                    
-                    // If very close timestamps (within 1000ms), sort by role: user first, then assistant
-                    if (Math.abs(timeA - timeB) < 1000) {
-                      if (a.role === 'user' && b.role === 'assistant') return -1;
-                      if (a.role === 'assistant' && b.role === 'user') return 1;
-                    }
-                    
-                    return timeA - timeB;
-                  })
-                  .map((message) => (
-                    <MessageBubble key={message.id} message={message} />
-                  ))}
+                {messages.map((message) => (
+                  <MessageBubble key={message.id} message={message} />
+                ))}
                 <div ref={messagesEndRef} />
               </>
             )}

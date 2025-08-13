@@ -16,9 +16,8 @@ export const useChat = () => {
   const sendMessage = useCallback(async (content: string, file?: UploadedFile, images?: PastedImage[]) => {
     if (!content.trim() && !file && (!images || images.length === 0)) return;
 
-    const baseTime = Date.now();
-    const userTime = baseTime;
-    const loadingTime = baseTime + 500; // +500ms để đảm bảo loading sau user
+    const userTime = Date.now();
+    const loadingTime = userTime + 1;
     
     const userMessage: Message = {
       id: `user-${userTime}`,
@@ -28,7 +27,7 @@ export const useChat = () => {
       file: file,
       images: images,
       image_url: file?.type === 'image' ? {
-        url: file.content || `http://localhost:3002${file.url}`
+        url: file.content || `https://dungnguyen.duckdns.org${file.url}`
       } : undefined,
     };
 
@@ -98,7 +97,7 @@ export const useChat = () => {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
         content: response.message.content,
-        timestamp: new Date(loadingTime + 100), // +100ms sau loading message
+        timestamp: new Date(loadingTime + 1),
       };
 
       setMessages(prev => [

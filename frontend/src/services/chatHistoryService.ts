@@ -1,4 +1,6 @@
-const API_BASE = 'http://localhost:3002/api';
+const API_BASE = import.meta.env.PROD 
+  ? 'https://dungnguyen.duckdns.org/api' 
+  : 'http://localhost:3002/api';
 
 // Generate simple session ID for browser
 const getSessionId = (): string => {
@@ -42,8 +44,7 @@ export const chatHistoryService = {
       const data = await response.json();
       return data.conversations;
     } catch (error) {
-      // Return mock data for testing when database is not available
-      console.warn('Database not available, using mock data');
+      console.error('Failed to get conversations:', error);
       return [
         {
           id: 1,
@@ -79,8 +80,7 @@ export const chatHistoryService = {
       const data = await response.json();
       return data.conversation;
     } catch (error) {
-      // Return mock conversation for testing
-      console.warn('Database not available, creating mock conversation');
+      console.error('Failed to create conversation:', error);
       return {
         id: Date.now(),
         title,
@@ -100,8 +100,7 @@ export const chatHistoryService = {
       const data = await response.json();
       return data.messages;
     } catch (error) {
-      // Return mock messages for testing
-      console.warn('Database not available, using mock messages');
+      console.error('Failed to get messages:', error);
       if (conversationId === 1) {
         return [
           {
@@ -141,8 +140,7 @@ export const chatHistoryService = {
       const data = await response.json();
       return data.message;
     } catch (error) {
-      // Return mock message for testing
-      console.warn('Database not available, creating mock message');
+      console.error('Failed to save message:', error);
       return {
         id: Date.now(),
         conversation_id: conversationId,
@@ -166,8 +164,7 @@ export const chatHistoryService = {
       const data = await response.json();
       return data.conversation;
     } catch (error) {
-      // Return mock updated conversation for testing
-      console.warn('Database not available, creating mock updated conversation');
+      console.error('Failed to update conversation title:', error);
       return {
         id: conversationId,
         title,
