@@ -18,8 +18,8 @@ git pull origin main
 echo "🔧 Setting up backend..."
 cd backend
 
-# Install/update dependencies
-npm install --production
+# Install/update dependencies (including dev dependencies for build)
+npm install
 
 # Build TypeScript
 npm run build
