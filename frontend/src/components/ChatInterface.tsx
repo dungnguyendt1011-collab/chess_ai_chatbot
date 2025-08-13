@@ -17,9 +17,20 @@ export const ChatInterface: React.FC = () => {
   }, [messages]);
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+    <div 
+      className="flex flex-col h-screen"
+      style={{
+        background: `linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))`
+      }}
+    >
       {/* Header */}
-      <header className="flex-shrink-0 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 shadow-sm">
+      <header 
+        className="flex-shrink-0 backdrop-blur-md shadow-sm"
+        style={{
+          backgroundColor: 'var(--header-bg)',
+          borderBottom: `1px solid var(--border-primary)`
+        }}
+      >
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
@@ -28,8 +39,18 @@ export const ChatInterface: React.FC = () => {
               </svg>
             </div>
             <div>
-              <h1 className="text-xl font-semibold text-gray-900 dark:text-white">AI Chat Assistant</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Powered by GPT</p>
+              <h1 
+                className="text-xl font-semibold"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                Chat Minio
+              </h1>
+              <p 
+                className="text-sm"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                Powered by GPT
+              </p>
             </div>
           </div>
           

@@ -40,10 +40,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
             relative px-4 py-3 rounded-2xl shadow-lg backdrop-blur-sm
             ${isUser
               ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white ml-auto'
-              : 'bg-white/10 text-gray-800 dark:text-gray-200 border border-white/20'
+              : ''
             }
             ${isLoading ? 'animate-pulse' : ''}
           `}
+          style={!isUser ? {
+            backgroundColor: 'var(--chat-bg)',
+            color: 'var(--text-primary)',
+            border: `1px solid var(--chat-border)`
+          } : {}}
         >
           {isLoading ? (
             <div className="flex space-x-1">
@@ -119,14 +124,21 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
               absolute top-0 w-0 h-0
               ${isUser
                 ? 'right-0 -mr-2 border-l-8 border-l-blue-500 border-t-8 border-t-transparent'
-                : 'left-0 -ml-2 border-r-8 border-r-white/10 border-t-8 border-t-transparent'
+                : 'left-0 -ml-2 border-t-8 border-t-transparent'
               }
             `}
+            style={!isUser ? {
+              borderRightWidth: '8px',
+              borderRightColor: 'var(--chat-bg)'
+            } : {}}
           />
         </div>
         
         {!isLoading && (
-          <div className={`text-xs text-gray-500 mt-1 ${isUser ? 'text-right' : 'text-left'}`}>
+          <div 
+            className={`text-xs mt-1 ${isUser ? 'text-right' : 'text-left'}`}
+            style={{ color: 'var(--text-muted)' }}
+          >
             {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </div>
         )}

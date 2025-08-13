@@ -26,15 +26,8 @@ export const useTheme = () => {
     // Remove any existing theme classes first
     root.classList.remove('light', 'dark');
     
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.add('light');
-    }
-    
-    // Debug logging
-    console.log('Theme switched to:', theme);
-    console.log('Document classes:', root.className);
+    // Always add the current theme class
+    root.classList.add(theme);
     
     localStorage.setItem('theme', theme);
   }, [theme]);
