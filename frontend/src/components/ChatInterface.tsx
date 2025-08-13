@@ -32,20 +32,24 @@ export const ChatInterface: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
-  // Load messages khi chọn conversation từ history
+  // Load messages when selecting conversation from history
   useEffect(() => {
-    if (currentConversation && historyMessages.length > 0) {
-      const convertedMessages: Message[] = historyMessages.map(msg => ({
-        id: msg.id.toString(),
-        role: msg.role as 'user' | 'assistant',
-        content: msg.content,
-        timestamp: new Date(msg.created_at),
-        images: msg.images ? (typeof msg.images === 'string' ? JSON.parse(msg.images) : msg.images) : undefined,
-        saved: true, // Mark as saved since they're from history
-      }));
-      setMessages(convertedMessages);
+    if (currentConversation) {
+      if (historyMessages.length > 0) {
+        const convertedMessages: Message[] = historyMessages.map(msg => ({
+          id: msg.id.toString(),
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content,
+          timestamp: new Date(msg.created_at),
+          images: msg.images ? (typeof msg.images === 'string' ? JSON.parse(msg.images) : msg.images) : undefined,
+          saved: true, // Mark as saved since they're from history
+        }));
+        setMessages(convertedMessages);
+      } else {
+        // Clear messages if no history for this conversation
+        setMessages([]);
+      }
     }
-    // Don't clear messages automatically - let user actions handle it
   }, [currentConversation, historyMessages, setMessages]);
 
   // Enhanced send message function với history
@@ -108,10 +112,9 @@ export const ChatInterface: React.FC = () => {
   };
 
   const handleSelectConversation = async (conversation: any) => {
-    // Only clear messages if it's a different conversation
+    // Only load if it's a different conversation
     if (currentConversation?.id !== conversation.id) {
-      clearMessages(); // Clear messages first to avoid conflicts
-      await selectConversation(conversation);
+      await selectConversation(conversation); // Load conversation first, then messages will be set via useEffect
     }
   };
 

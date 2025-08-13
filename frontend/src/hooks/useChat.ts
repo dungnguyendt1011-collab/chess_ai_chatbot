@@ -15,6 +15,7 @@ export const useChat = () => {
 
   const sendMessage = useCallback(async (content: string, file?: UploadedFile, images?: PastedImage[]) => {
     if (!content.trim() && !file && (!images || images.length === 0)) return;
+    if (isLoading) return; // Prevent duplicate calls while loading
 
     const userTime = Date.now();
     const loadingTime = userTime + 1;
@@ -110,7 +111,7 @@ export const useChat = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []); // Remove messages dependency to prevent re-creation
+  }, [isLoading]); // Add isLoading dependency to prevent duplicate calls
 
   const clearMessages = useCallback(() => {
     setMessages([]);

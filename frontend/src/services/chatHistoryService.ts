@@ -45,26 +45,7 @@ export const chatHistoryService = {
       return data.conversations;
     } catch (error) {
       console.error('Failed to get conversations:', error);
-      return [
-        {
-          id: 1,
-          title: 'Quantum Computing Discussion',
-          created_at: new Date(Date.now() - 86400000).toISOString(),
-          updated_at: new Date(Date.now() - 86400000).toISOString(),
-        },
-        {
-          id: 2,
-          title: 'Python Functions Help',
-          created_at: new Date(Date.now() - 172800000).toISOString(),
-          updated_at: new Date(Date.now() - 172800000).toISOString(),
-        },
-        {
-          id: 3,
-          title: 'Travel Planning',
-          created_at: new Date(Date.now() - 259200000).toISOString(),
-          updated_at: new Date(Date.now() - 259200000).toISOString(),
-        },
-      ];
+      return []; // Return empty array instead of mock data
     }
   },
 
@@ -93,33 +74,20 @@ export const chatHistoryService = {
   // Lấy messages của conversation
   async getMessages(conversationId: number): Promise<Message[]> {
     try {
+      console.log(`Loading messages for conversation ${conversationId}`);
       const response = await fetch(`${API_BASE}/conversations/${conversationId}/messages`, {
         headers,
       });
-      if (!response.ok) throw new Error('Failed to get messages');
+      if (!response.ok) {
+        console.error(`Failed to get messages - Status: ${response.status}`);
+        throw new Error('Failed to get messages');
+      }
       const data = await response.json();
-      return data.messages;
+      console.log(`Loaded ${data.messages?.length || 0} messages for conversation ${conversationId}`);
+      return data.messages || [];
     } catch (error) {
       console.error('Failed to get messages:', error);
-      if (conversationId === 1) {
-        return [
-          {
-            id: 1,
-            conversation_id: 1,
-            role: 'user',
-            content: 'Can you explain quantum computing?',
-            created_at: new Date(Date.now() - 86400000).toISOString(),
-          },
-          {
-            id: 2,
-            conversation_id: 1,
-            role: 'assistant',
-            content: 'Quantum computing is a type of computation that uses quantum mechanical phenomena...',
-            created_at: new Date(Date.now() - 86399000).toISOString(),
-          },
-        ];
-      }
-      return [];
+      return []; // Return empty array instead of mock data
     }
   },
 
@@ -131,13 +99,18 @@ export const chatHistoryService = {
     images?: any[]
   ): Promise<Message> {
     try {
+      console.log(`Saving ${role} message to conversation ${conversationId}`);
       const response = await fetch(`${API_BASE}/conversations/${conversationId}/messages`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ role, content, images }),
       });
-      if (!response.ok) throw new Error('Failed to save message');
+      if (!response.ok) {
+        console.error(`Failed to save message - Status: ${response.status}`);
+        throw new Error('Failed to save message');
+      }
       const data = await response.json();
+      console.log(`Message saved successfully: ${data.message?.id}`);
       return data.message;
     } catch (error) {
       console.error('Failed to save message:', error);
