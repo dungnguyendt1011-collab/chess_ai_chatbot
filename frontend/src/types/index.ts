@@ -9,6 +9,7 @@ export interface Message {
   image_url?: {
     url: string;
   };
+  saved?: boolean;
 }
 
 export interface PastedImage {

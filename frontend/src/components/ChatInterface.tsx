@@ -1,11 +1,27 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { MessageBubble } from './MessageBubble';
 import { InputBox } from './InputBox';
 import { ThemeToggle } from './ThemeToggle';
+import { ChatSidebar } from './ChatSidebar';
 import { useChat } from '../hooks/useChat';
+import { useChatHistory } from '../hooks/useChatHistory';
+import type { Message, UploadedFile, PastedImage } from '../types';
 
 export const ChatInterface: React.FC = () => {
-  const { messages, isLoading, error, sendMessage, clearMessages } = useChat();
+  const { messages, isLoading, error, sendMessage, clearMessages, setMessages } = useChat();
+  const {
+    conversations,
+    currentConversation,
+    messages: historyMessages,
+    loading: historyLoading,
+    createNewConversation,
+    selectConversation,
+    saveMessage: saveHistoryMessage,
+    updateConversationTitle,
+    clearCurrentConversation,
+  } = useChatHistory();
+  
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -16,13 +32,105 @@ export const ChatInterface: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
+  // Load messages khi chọn conversation từ history
+  useEffect(() => {
+    if (currentConversation && historyMessages.length > 0) {
+      const convertedMessages: Message[] = historyMessages.map(msg => ({
+        id: msg.id.toString(),
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content,
+        timestamp: new Date(msg.created_at),
+        images: msg.images ? (typeof msg.images === 'string' ? JSON.parse(msg.images) : msg.images) : undefined,
+        saved: true, // Mark as saved since they're from history
+      }));
+      setMessages(convertedMessages);
+    }
+    // Don't clear messages automatically - let user actions handle it
+  }, [currentConversation, historyMessages, setMessages]);
+
+  // Enhanced send message function với history
+  const handleSendMessage = async (content: string, file?: UploadedFile, images?: PastedImage[]) => {
+    // Nếu chưa có conversation, tạo mới trước khi send message
+    if (!currentConversation) {
+      const firstWords = content.trim().split(' ').slice(0, 6).join(' ');
+      const title = firstWords.length > 0 ? firstWords : 'New Chat';
+      const newConv = await createNewConversation(title);
+      
+      // Đảm bảo conversation được tạo thành công trước khi send message
+      if (!newConv) {
+        console.error('Failed to create conversation');
+        return;
+      }
+    }
+
+    // Send message như bình thường
+    await sendMessage(content, file, images);
+  };
+
+  // Save messages to history sau khi có response - fixed to avoid message disappearing
+  useEffect(() => {
+    if (!currentConversation || messages.length === 0) return;
+
+    // Find the last completed message pair (user + assistant)
+    const lastMessage = messages[messages.length - 1];
+    const secondLastMessage = messages[messages.length - 2];
+
+    // Only save when assistant has completed responding
+    if (lastMessage?.role === 'assistant' && !lastMessage.isLoading && !lastMessage.saved) {
+      // Save assistant message
+      saveHistoryMessage(lastMessage.role, lastMessage.content);
+      setMessages(prev => prev.map(m => 
+        m.id === lastMessage.id ? { ...m, saved: true } : m
+      ));
+
+      // Also save the user message if it exists and not saved
+      if (secondLastMessage?.role === 'user' && !secondLastMessage.saved) {
+        saveHistoryMessage(secondLastMessage.role, secondLastMessage.content, secondLastMessage.images);
+        setMessages(prev => prev.map(m => 
+          m.id === secondLastMessage.id ? { ...m, saved: true } : m
+        ));
+      }
+    }
+  }, [messages, currentConversation, saveHistoryMessage]);
+
+  const handleNewChat = async () => {
+    // Clear everything first to avoid conflicts
+    clearMessages();
+    clearCurrentConversation();
+    // Don't create conversation yet, wait for first message
+  };
+
+  const handleSelectConversation = async (conversation: any) => {
+    // Only clear messages if it's a different conversation
+    if (currentConversation?.id !== conversation.id) {
+      clearMessages(); // Clear messages first to avoid conflicts
+      await selectConversation(conversation);
+    }
+  };
+
   return (
-    <div 
-      className="flex flex-col h-screen"
-      style={{
-        background: `linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))`
-      }}
-    >
+    <div className="flex h-screen">
+      {/* Sidebar */}
+      {sidebarOpen && (
+        <div className="w-80 flex-shrink-0">
+          <ChatSidebar
+            conversations={conversations}
+            currentConversation={currentConversation}
+            onSelectConversation={handleSelectConversation}
+            onNewChat={handleNewChat}
+            onUpdateTitle={updateConversationTitle}
+            loading={historyLoading}
+          />
+        </div>
+      )}
+
+      {/* Main Chat Area */}
+      <div 
+        className="flex flex-col flex-1"
+        style={{
+          background: `linear-gradient(to bottom right, var(--gradient-from), var(--gradient-via), var(--gradient-to))`
+        }}
+      >
       {/* Header */}
       <header 
         className="flex-shrink-0 backdrop-blur-md shadow-sm"
@@ -55,9 +163,20 @@ export const ChatInterface: React.FC = () => {
           </div>
           
           <div className="flex items-center space-x-2">
+            {/* Sidebar Toggle */}
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+              title={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+            >
+              <svg className="w-5 h-5" style={{ color: 'var(--text-secondary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+
             {messages.length > 0 && (
               <button
-                onClick={clearMessages}
+                onClick={handleNewChat}
                 className="
                   px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300
                   hover:text-gray-900 dark:hover:text-white
@@ -65,7 +184,7 @@ export const ChatInterface: React.FC = () => {
                   rounded-lg transition-colors duration-200
                 "
               >
-                Clear Chat
+                New Chat
               </button>
             )}
             
@@ -105,7 +224,7 @@ export const ChatInterface: React.FC = () => {
                   ].map((suggestion, index) => (
                     <button
                       key={index}
-                      onClick={() => sendMessage(suggestion)}
+                      onClick={() => handleSendMessage(suggestion)}
                       className="
                         p-3 text-sm text-left rounded-xl border border-gray-200 dark:border-gray-700
                         hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-gray-700
@@ -121,9 +240,27 @@ export const ChatInterface: React.FC = () => {
               </div>
             ) : (
               <>
-                {messages.map((message) => (
-                  <MessageBubble key={message.id} message={message} />
-                ))}
+                {messages
+                  .filter((message, index, arr) => 
+                    // Remove duplicates based on ID first
+                    arr.findIndex(m => m.id === message.id) === index
+                  )
+                  .sort((a, b) => {
+                    // Sort by timestamp, but ensure user messages come before assistant responses
+                    const timeA = a.timestamp.getTime();
+                    const timeB = b.timestamp.getTime();
+                    
+                    // If very close timestamps (within 1000ms), sort by role: user first, then assistant
+                    if (Math.abs(timeA - timeB) < 1000) {
+                      if (a.role === 'user' && b.role === 'assistant') return -1;
+                      if (a.role === 'assistant' && b.role === 'user') return 1;
+                    }
+                    
+                    return timeA - timeB;
+                  })
+                  .map((message) => (
+                    <MessageBubble key={message.id} message={message} />
+                  ))}
                 <div ref={messagesEndRef} />
               </>
             )}
@@ -148,10 +285,11 @@ export const ChatInterface: React.FC = () => {
       {/* Input Area */}
       <div className="flex-shrink-0">
         <InputBox
-          onSendMessage={sendMessage}
+          onSendMessage={handleSendMessage}
           disabled={isLoading}
           placeholder={isLoading ? "AI is thinking..." : "Type your message..."}
         />
+      </div>
       </div>
     </div>
   );

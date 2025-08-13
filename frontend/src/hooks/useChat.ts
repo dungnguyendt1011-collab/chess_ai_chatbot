@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { Message, UploadedFile, PastedImage } from '../types';
 import { ChatAPI } from '../services/api';
 
@@ -6,15 +6,25 @@ export const useChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const messagesRef = useRef<Message[]>([]);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   const sendMessage = useCallback(async (content: string, file?: UploadedFile, images?: PastedImage[]) => {
     if (!content.trim() && !file && (!images || images.length === 0)) return;
 
+    const baseTime = Date.now();
+    const userTime = baseTime;
+    const loadingTime = baseTime + 500; // +500ms để đảm bảo loading sau user
+    
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: `user-${userTime}`,
       role: 'user',
       content: content.trim() || (file ? `Uploaded: ${file.originalname}` : '') || (images && images.length > 0 ? 'Images pasted' : ''),
-      timestamp: new Date(),
+      timestamp: new Date(userTime),
       file: file,
       images: images,
       image_url: file?.type === 'image' ? {
@@ -23,10 +33,10 @@ export const useChat = () => {
     };
 
     const loadingMessage: Message = {
-      id: (Date.now() + 1).toString(),
+      id: `assistant-loading-${userTime}`,
       role: 'assistant',
       content: '',
-      timestamp: new Date(),
+      timestamp: new Date(loadingTime),
       isLoading: true,
     };
 
@@ -35,7 +45,9 @@ export const useChat = () => {
     setError(null);
 
     try {
-      const chatMessages = [...messages, userMessage].map(msg => {
+      // Get messages to send (use ref to get current state)
+      const messagesToSend = [...messagesRef.current, userMessage];
+      const chatMessages = messagesToSend.map(msg => {
         const baseMessage = {
           role: msg.role,
           content: msg.content,
@@ -83,10 +95,10 @@ export const useChat = () => {
       });
 
       const assistantMessage: Message = {
-        id: (Date.now() + 2).toString(),
+        id: `assistant-${Date.now()}`,
         role: 'assistant',
         content: response.message.content,
-        timestamp: new Date(),
+        timestamp: new Date(loadingTime + 100), // +100ms sau loading message
       };
 
       setMessages(prev => [
@@ -99,7 +111,7 @@ export const useChat = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [messages]);
+  }, []); // Remove messages dependency to prevent re-creation
 
   const clearMessages = useCallback(() => {
     setMessages([]);
@@ -112,5 +124,6 @@ export const useChat = () => {
     error,
     sendMessage,
     clearMessages,
+    setMessages,
   };
 };

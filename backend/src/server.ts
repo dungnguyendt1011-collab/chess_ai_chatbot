@@ -6,6 +6,7 @@ import path from 'path';
 import fs from 'fs';
 import OpenAI from 'openai';
 import pdfParse from 'pdf-parse';
+import { ChatHistoryDB, pool } from './database';
 
 dotenv.config();
 
@@ -214,12 +215,126 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
+// Initialize database connection
+const chatDB = new ChatHistoryDB();
+
+// Chat History API Endpoints
+
+// Get user's conversations
+app.get('/api/conversations', async (req, res) => {
+  try {
+    const sessionId = req.headers['session-id'] as string || 'anonymous';
+    
+    const user = await ChatHistoryDB.getOrCreateUser(sessionId);
+    const conversations = await ChatHistoryDB.getUserConversations(user.id);
+    
+    res.json({ conversations });
+  } catch (error) {
+    console.error('Get conversations error:', error);
+    res.status(500).json({ error: 'Failed to get conversations' });
+  }
+});
+
+// Create new conversation
+app.post('/api/conversations', async (req, res) => {
+  try {
+    const sessionId = req.headers['session-id'] as string || 'anonymous';
+    const { title } = req.body;
+    
+    const user = await ChatHistoryDB.getOrCreateUser(sessionId);
+    const conversation = await ChatHistoryDB.createConversation(user.id, title);
+    
+    res.json({ conversation });
+  } catch (error) {
+    console.error('Create conversation error:', error);
+    res.status(500).json({ error: 'Failed to create conversation' });
+  }
+});
+
+// Get messages for a conversation
+app.get('/api/conversations/:id/messages', async (req, res) => {
+  try {
+    const conversationId = parseInt(req.params.id);
+    const messages = await ChatHistoryDB.getConversationMessages(conversationId);
+    
+    res.json({ messages });
+  } catch (error) {
+    console.error('Get messages error:', error);
+    res.status(500).json({ error: 'Failed to get messages' });
+  }
+});
+
+// Save message to conversation
+app.post('/api/conversations/:id/messages', async (req, res) => {
+  try {
+    const conversationId = parseInt(req.params.id);
+    const { role, content, images } = req.body;
+    
+    const message = await ChatHistoryDB.saveMessage(conversationId, role, content, images);
+    
+    res.json({ message });
+  } catch (error) {
+    console.error('Save message error:', error);
+    res.status(500).json({ error: 'Failed to save message' });
+  }
+});
+
+// Update conversation title
+app.put('/api/conversations/:id', async (req, res) => {
+  try {
+    const conversationId = parseInt(req.params.id);
+    const { title } = req.body;
+    
+    const conversation = await ChatHistoryDB.updateConversationTitle(conversationId, title);
+    
+    res.json({ conversation });
+  } catch (error) {
+    console.error('Update conversation error:', error);
+    res.status(500).json({ error: 'Failed to update conversation' });
+  }
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-app.listen(PORT, () => {
+// Test route để kiểm tra routes hoạt động
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'Test route working', sessionId: req.headers['session-id'] });
+});
+
+// Chạy cleanup job mỗi 24 giờ (86400000 ms)
+const cleanupInterval = setInterval(async () => {
+  try {
+    await ChatHistoryDB.cleanupOldConversations();
+  } catch (error) {
+    console.error('❌ Cleanup job error:', error);
+  }
+}, 24 * 60 * 60 * 1000);
+
+// Cleanup khi server shutdown
+process.on('SIGTERM', () => {
+  clearInterval(cleanupInterval);
+  pool.end();
+});
+
+process.on('SIGINT', () => {
+  clearInterval(cleanupInterval);
+  pool.end();
+  process.exit(0);
+});
+
+app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/api/health`);
   console.log(`File uploads enabled at: http://localhost:${PORT}/api/upload`);
+  
+  // Chạy cleanup ngay khi server start
+  try {
+    await ChatHistoryDB.cleanupOldConversations();
+    console.log('📋 Chat history cleanup completed');
+  } catch (error) {
+    console.error('❌ Initial cleanup error:', error);
+  }
+  console.log('📋 Chat history cleanup scheduled every 24 hours');
 });
